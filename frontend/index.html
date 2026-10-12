@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f2ec" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16161a" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="REWANŻ – forum rozwiązań: zadawaj problemy, odpowiadaj, oceniaj i zgłaszaj problemy na mapie." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <!-- Połączenie z API zestawiane równolegle z ładowaniem aplikacji -->
+    <link rel="preconnect" href="%VITE_API_URL%" crossorigin />
+    <title>REWANŻ</title>
+    <script>
+      // Budzenie backendu NAJWCZEŚNIEJ jak się da – zanim pobierze się JS aplikacji.
+      // Darmowy Render usypia API po 15 min; każda sekunda przewagi się liczy.
+      (function () {
+        try {
+          var api = "%VITE_API_URL%".replace(/\/$/, "");
+          if (api.charAt(0) === "%") api = "http://localhost:8000"; // brak zmiennej przy buildzie
+          window.__REWANZ_API__ = api;
+          window.__REWANZ_WAKE__ = fetch(api + "/healthz", { cache: "no-store", mode: "cors" })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; });
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>REWANŻ wymaga włączonej obsługi JavaScript.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

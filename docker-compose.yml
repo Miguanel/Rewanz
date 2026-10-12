@@ -1,0 +1,21 @@
+# Lokalny PostgreSQL – ta sama baza co na Render (wyszukiwanie pełnotekstowe, pg_trgm).
+# Start:  docker compose up -d
+# Potem w backend/.env:  DATABASE_URL=postgresql://rewanz:rewanz@localhost:5432/rewanz
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rewanz
+      POSTGRES_PASSWORD: rewanz
+      POSTGRES_DB: rewanz
+    ports:
+      - "5432:5432"
+    volumes:
+      - rewanz-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rewanz"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  rewanz-pg:
