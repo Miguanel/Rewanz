@@ -4,9 +4,9 @@
 #        │  HTTPS + CORS
 #        ▼
 #   rewanz-api  (web service, FastAPI) ── darmowy plan usypia po 15 min
-#        │  sieć prywatna Render
+#        │  TLS
 #        ▼
-#   rewanz-db   (PostgreSQL)
+#   PostgreSQL  (Neon – zewnętrzny, darmowy, nie wygasa)
 #
 # Wdrożenie: Render Dashboard → New → Blueprint → wskaż repozytorium.
 # Szczegóły: docs/WDROZENIE.md
@@ -30,10 +30,10 @@ services:
         value: 3.11.9
       - key: ENV
         value: production
+      # Zewnętrzny PostgreSQL (np. Neon). Ustaw w panelu: rewanz-api → Environment.
+      # Render pozwala na 1 darmową bazę na konto – stąd baza poza Render.
       - key: DATABASE_URL
-        fromDatabase:
-          name: rewanz-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       # Adres frontendu. Regex łapie też sufiks dodany przez Render, gdy nazwa
@@ -62,7 +62,7 @@ services:
       # Adres API widoczny w panelu rewanz-api (Settings → URL).
       # Jeśli Render nadał inny adres (np. z sufiksem) – popraw i zrób redeploy frontendu.
       - key: VITE_API_URL
-        value: https://rewanz-api.onrender.com
+        value: https://rewanz-api-138p.onrender.com
       - key: NODE_VERSION
         value: "20"
     routes:
@@ -92,10 +92,6 @@ services:
         name: X-Frame-Options
         value: DENY
 
-databases:
-  - name: rewanz-db
-    plan: free                 # UWAGA: darmowa baza wygasa po 30 dniach – patrz docs/WDROZENIE.md
-    region: frankfurt          # ten sam region co API
-    databaseName: rewanz
-    user: rewanz
-    postgresMajorVersion: "16"
+# Baza danych: zewnętrzny PostgreSQL (Neon) – patrz docs/WDROZENIE.md, sekcja 4.
+# Gdy przejdziesz na płatną bazę Render, przywróć tu sekcję `databases:`
+# i w rewanz-api ustaw DATABASE_URL przez fromDatabase.

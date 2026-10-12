@@ -47,6 +47,10 @@ class Settings(BaseSettings):
         # generuje się automatycznie (256 bitów) – ten warunek łapie ręczne pomyłki.
         if self.env == "production" and len(self.jwt_secret.encode()) < 32:
             raise ValueError("JWT_SECRET na produkcji musi mieć co najmniej 32 bajty")
+        # Bez tego brak DATABASE_URL = cichy start na SQLite, który na Render
+        # znika przy każdym uśpieniu/restarcie (ulotny dysk).
+        if self.env == "production" and not self.is_postgres:
+            raise ValueError("Na produkcji ustaw DATABASE_URL na PostgreSQL (np. Neon)")
         return self
 
     @property

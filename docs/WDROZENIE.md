@@ -120,10 +120,23 @@ Workflow `.github/workflows/ci.yml` przy każdym pushu uruchamia testy backendu 
 
 ## 4. Wdrożenie na Render (Blueprint)
 
+### 4a. Baza danych – Neon (darmowa, nie wygasa)
+
+Render pozwala na **jedną** darmową bazę na konto (i usuwa ją po 30 dniach), dlatego baza jest poza Render:
+
+1. Załóż konto na https://neon.tech → **New project**, region **AWS Europe Central 1 (Frankfurt)** – ten sam co API.
+2. *Connection Details* → skopiuj connection string (format `postgresql://user:hasło@host/neondb?sslmode=require`).
+   Działa zarówno adres zwykły, jak i z `-pooler` (kod wyłącza prepared statements, więc pooler jest bezpieczny).
+3. Wklej go w Render: `rewanz-api` → *Environment* → `DATABASE_URL` → *Save, rebuild and deploy*.
+
+Bez `DATABASE_URL` API na produkcji celowo nie wystartuje (komunikat w logach), zamiast po cichu użyć SQLite.
+
+### 4b. Usługi na Render
+
 1. Zaloguj się na https://dashboard.render.com i połącz konto GitHub.
 2. **New → Blueprint** → wybierz repozytorium `rewanz` → gałąź `main`.
-3. Render pokaże 3 zasoby z `render.yaml`: `rewanz-api`, `rewanz-web`, `rewanz-db`. Kliknij **Apply**.
-4. Poczekaj na build (pierwszy trwa kilka minut). Kolejność nie ma znaczenia – API czeka na bazę przez `DATABASE_URL`.
+3. Render pokaże 2 usługi z `render.yaml`: `rewanz-api` i `rewanz-web` (może dokleić do nazw sufiks, np. `-138p`). Kliknij **Apply**.
+4. Ustaw `DATABASE_URL` w `rewanz-api` (pkt 4a) i poczekaj na build.
 5. Sprawdź API: otwórz `https://rewanz-api.onrender.com/healthz` → `{"status":"ok",...}` oraz `/docs`.
 6. **Sprawdź adres API.** Jeśli nazwa była zajęta, Render doda sufiks (np. `rewanz-api-x1y2.onrender.com`). Wtedy:
    - `rewanz-web` → *Environment* → popraw `VITE_API_URL`,
@@ -138,7 +151,7 @@ Workflow `.github/workflows/ci.yml` przy każdym pushu uruchamia testy backendu 
 |---|---|
 | `rewanz-api` | Python 3.11.9, region Frankfurt, `healthCheckPath: /healthz`, start: `scripts/start.sh` (migracje Alembic → opcjonalny seed → uvicorn), `JWT_SECRET` generowany automatycznie, `DATABASE_URL` z bazy przez sieć prywatną, mała pula połączeń (limit darmowej bazy). |
 | `rewanz-web` | `npm install && npm run build`, publikacja `dist`, przepisywanie `/*` → `/index.html` (routing SPA), cache na rok dla `/assets/*` (pliki z hashem), `no-cache` dla `sw.js` i `index.html` (aktualizacje docierają od razu), nagłówki bezpieczeństwa. |
-| `rewanz-db` | PostgreSQL 16, Frankfurt, baza `rewanz`. Migracja dodaje kolumny `tsvector` z indeksem GIN i indeks trigramowy tytułów. |
+| Baza (Neon) | PostgreSQL, Frankfurt. Migracja przy starcie API dodaje kolumny `tsvector` z indeksem GIN i indeks trigramowy tytułów (`pg_trgm` jest dostępne w Neon). |
 
 ### Własna domena (opcjonalnie)
 
@@ -152,7 +165,7 @@ Potem w `rewanz-api` dopisz domenę do `CORS_ORIGINS` (np. `https://rewanz.pl,ht
 | Ograniczenie | Skutek | Rozwiązanie |
 |---|---|---|
 | API usypia po 15 min bez ruchu | Pierwsze żądanie po przerwie czeka zwykle kilkadziesiąt sekund | Obsłużone w aplikacji (pkt 1). Na produkcję: plan płatny bez usypiania – w `render.yaml` zmień `plan: free` na `plan: starter` i przenieś migracje do `preDeployCommand: alembic upgrade head`. |
-| **Darmowa baza wygasa po 30 dniach** (potem 14 dni na upgrade, następnie usunięcie danych) | Utrata danych | Przed upływem 30 dni: upgrade bazy do płatnego planu w panelu (dane zostają) **albo** zewnętrzny darmowy PostgreSQL (np. Neon): usuń sekcję `databases` z `render.yaml`, a w `rewanz-api` ustaw ręcznie `DATABASE_URL` na adres z `?sslmode=require`. Kod nie wymaga zmian. |
+| Render: 1 darmowa baza na konto, wygasa po 30 dniach | Konflikt z innymi projektami, utrata danych | Dlatego baza jest w Neon (pkt 4a). Przejście na płatną bazę Render: przywróć sekcję `databases:` w `render.yaml` i `fromDatabase` w `DATABASE_URL`. |
 | Brak kopii zapasowych na darmowej bazie | – | Okresowo `pg_dump` z adresu zewnętrznego (panel bazy → *Connect → External*). |
 | 750 darmowych godzin/miesiąc na cały workspace | Jedna usługa działająca 24/7 mieści się w limicie, dwie już nie | Static site nie zużywa tych godzin. |
 | Ulotny system plików API | Pliki zapisane na dysku znikną przy restarcie | Dlatego wszystko jest w bazie. Przyszłe załączniki/zdjęcia → magazyn obiektów (S3 / Cloudflare R2). |
